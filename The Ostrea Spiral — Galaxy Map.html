@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Ostrea Spiral</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Figtree:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root,:root[data-theme="light"],:root[data-theme="dark"]{--bg:#0d0c1b;--ink:#ece6d8;--muted:#a29cb4;--panel:rgba(22,20,42,.88);--line:rgba(236,230,216,.16);--serif:Fraunces,Georgia,serif;--sans:Figtree,system-ui,sans-serif}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{position:relative;overflow:hidden;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans)}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+header{position:absolute;top:14px;left:16px;width:min(330px,calc(100% - 32px));pointer-events:none}
+header>*{pointer-events:auto}
+h1{font:600 28px/1.1 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
+header p{margin:0 0 12px;color:var(--muted);font-size:14px;max-width:34ch}
+input{width:100%;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:9px 12px;font:inherit}
+.legend{display:flex;flex-direction:column;gap:6px;margin-top:12px;align-items:flex-start}
+.legend button{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:999px;color:var(--ink);padding:5px 13px 5px 10px;font:inherit;font-size:13px;cursor:pointer}
+.legend button[aria-pressed=true]{border-color:var(--ink)}
+i{width:10px;height:10px;border-radius:50%;display:inline-block}
+#panel{position:absolute;top:14px;right:16px;width:300px;max-height:calc(100% - 28px);overflow:auto;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;backdrop-filter:blur(8px)}
+#panel[hidden]{display:none}
+h2{font:600 24px/1.15 var(--serif);margin:0 28px 4px 0}
+h3{font:600 15px var(--serif);margin:16px 0 8px}
+.fac{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:var(--muted);font-size:13px}
+dl{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:0 0 12px;font-size:13px}
+dt{color:var(--muted)}dd{margin:0}
+#panel p:not(.fac){margin:0;font-family:var(--serif);font-size:15px;line-height:1.55}
+.lanes{display:flex;flex-wrap:wrap;gap:6px}
+.lanes button{background:none;border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:3px 9px;font:inherit;font-size:13px;cursor:pointer}
+.lanes button:hover,.legend button:hover{border-color:var(--ink)}
+.x{position:absolute;top:10px;right:10px;background:none;border:0;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px}
+:focus-visible{outline:2px solid #f0b35a;outline-offset:2px}
+@media(max-width:640px){#panel{top:auto;right:0;left:0;bottom:0;width:auto;max-height:46%;border-radius:14px 14px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}.legend{flex-direction:row;flex-wrap:wrap}}
+</style></head>
+<body>
+<canvas id="c" aria-label="Map of the Ostrea Spiral galaxy"></canvas>
+<header>
+<h1>The Ostrea Spiral</h1>
+<p>Twenty-three systems, three powers and one silent core. Drag to pan, scroll or pinch to zoom, select a system for details.</p>
+<input id="q" list="names" placeholder="Find a system" aria-label="Find a system" autocomplete="off">
+<datalist id="names"></datalist>
+<div class="legend" id="legend"></div>
+</header>
+<aside id="panel" hidden></aside>
+<script>
+const F={c:{n:"Lantern Concord",c:"#f0b35a",r:"240,179,90"},d:{n:"Vael Dominion",c:"#e8647c",r:"232,100,124"},k:{n:"Hollow Kin",c:"#5cc8b8",r:"92,200,184"},f:{n:"Unclaimed",c:"#9aa3c9",r:"154,163,201"}};
+const S=[
+["Candlemere",180,-90,"c","Ringed capital world","4.2 billion","Seat of the Concord. Ten thousand lamp-ships circle the planet and never go dark.",6],
+["Brassline",330,-210,"c","Foundry binary","1.1 billion","Twin stars feed a shipyard belt that builds most of the Concord's freighters.",4],
+["Tallow Reach",90,-300,"c","Trade waystation","310 million","Every northern convoy stops here to pay the lane toll and swap rumors.",3],
+["Oriel Gate",420,40,"c","Jump gate cluster","740 million","The Concord's eastern door, held open by treaty and a great many guns.",4],
+["Saffron Deep",260,170,"c","Ocean world","2.6 billion","Warm seas farmed for the amber kelp that flavors half the galaxy.",4],
+["Vael Prime",-300,-120,"d","Fortress capital","3.8 billion","A planet-wide garrison where every citizen is also a reservist.",6],
+["Ironwake",-480,-260,"d","Shipbreaking moons","520 million","Captured hulls arrive by the hundred and leave as warships.",4],
+["Crowngrave",-220,-380,"d","Monument world","90 million","Dominion emperors are buried here under towers visible from orbit.",3],
+["Sable Anvil",-560,40,"d","Dark-sun forge","1.4 billion","Orbits a dying star whose dim light hides the fleet yards from prying eyes.",4],
+["Hush Bastion",-380,210,"d","Border fortress","260 million","Listening posts here watch the Hollow Kin migration routes.",3],
+["The Marrow",0,0,"f","Dormant black hole","None","The galaxy's quiet heart. Lanes bend around it, and navigators say it hums at night.",7],
+["Hollow Nest",120,420,"k","Hulk-city","890 million","A city built from a thousand welded ships, and still adding more.",5],
+["Drift Ossuary",-80,560,"k","Wreck field","170 million","The Kin bring their dead here and leave them to the long dark.",3],
+["Thessaly Wake",300,520,"k","Comet harbor","210 million","A harbor on a comet's tail that returns to the same place every forty years.",3],
+["Pale Orchard",520,380,"k","Garden hulk","330 million","Orchards of pale fruit grow under an artificial dawn.",3],
+["Lowlight",-260,480,"k","Red dwarf system","140 million","Clans gather by a dim red sun for the yearly Reckoning of names.",3],
+["Quill",640,-120,"f","Archive moon","12 million","Scribes copy every treaty ever signed. They take no sides, only notes.",3],
+["Anemone Verge",700,200,"f","Nebula colony","95 million","Settlers harvest glowing gas for fuel along the rim of a living nebula.",3],
+["Cinder Psalm",-700,-180,"f","Pilgrim world","8 million","A cult tends the ash of its extinguished sun and waits for it to return.",3],
+["Glasswater",-640,380,"f","Ocean planet","430 million","Floating cities drift on one global sea. All neutral, all armed.",4],
+["Tern's Folly",20,-560,"f","Frontier outpost","3 million","A failed colony that became a smugglers' haven.",3],
+["Halcyon Null",-120,-640,"f","Rogue planet","1,200","No star, no neighbors. The last lighthouse at the edge of charted space.",3],
+["Ember Choir",-90,-190,"d","Pulsar relay","48 million","A pulsar's rhythm carries Dominion orders faster than any courier.",3]];
+const L=[[10,0],[10,5],[10,4],[10,9],[10,22],[0,1],[0,2],[0,4],[1,3],[3,16],[3,17],[4,14],[14,17],[14,13],[13,11],[11,12],[12,15],[15,9],[9,8],[8,6],[6,18],[6,7],[7,5],[5,22],[22,7],[2,20],[20,21],[21,7],[8,19],[19,15]];
+const adj=S.map(()=>[]);L.forEach(([a,b])=>{adj[a].push(b);adj[b].push(a)});
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),panel=document.getElementById('panel');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,v={x:0,y:0,k:.4},sel=-1,hov=-1,filter=null,tw=null;
+function rs(){const d=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0);}
+addEventListener('resize',rs);rs();v.k=Math.max(.25,Math.min(W,H)/1900);
+
+let a=7;const R=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const G=()=>(R()+R()+R()-1.5)/1.5;
+const tints=['236,230,216','255,214,160','190,205,255','255,170,190'];
+const stars=[];
+for(let i=0;i<3600;i++){const r=Math.pow(R(),.75)*1050,th=r*.0042+(i%3)*2.094+G()*(.18+r/3500);
+stars.push([Math.cos(th)*r+G()*30,Math.sin(th)*r+G()*30,.4+R()*1.2,`rgba(${tints[R()<.7?0:1+(R()*3|0)]},${(.25+R()*.6).toFixed(2)})`]);}
+for(let i=0;i<700;i++)stars.push([G()*260,G()*260,.4+R()*1,`rgba(255,226,180,${(.3+R()*.5).toFixed(2)})`]);
+
+const sx=x=>(x-v.x)*v.k+W/2,sy=y=>(y-v.y)*v.k+H/2;
+function glow(x,y,r,rgb,al){const X=sx(x),Y=sy(y),q=r*v.k,g=ctx.createRadialGradient(X,Y,0,X,Y,q);g.addColorStop(0,`rgba(${rgb},${al})`);g.addColorStop(1,`rgba(${rgb},0)`);ctx.fillStyle=g;ctx.fillRect(X-q,Y-q,q*2,q*2);}
+const rad=s=>(2+s[7])*(.7+v.k*.6);
+const dim=i=>filter&&S[i][3]!==filter;
+
+function draw(t){
+ if(tw){const p=Math.min(1,(t-tw.t0)/tw.d),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;v.x=tw.f.x+(tw.x-tw.f.x)*e;v.y=tw.f.y+(tw.y-tw.f.y)*e;v.k=tw.f.k+(tw.k-tw.f.k)*e;if(p>=1)tw=null;}
+ ctx.fillStyle='#0d0c1b';ctx.fillRect(0,0,W,H);
+ glow(0,0,420,'255,190,130',.3);
+ for(const s of stars){const X=sx(s[0]),Y=sy(s[1]);if(X<0||Y<0||X>W||Y>H)continue;ctx.fillStyle=s[3];const z=s[2]*Math.min(1.6,.6+v.k);ctx.fillRect(X,Y,z,z);}
+ ctx.globalCompositeOperation='lighter';
+ S.forEach((s,i)=>{if(s[3]!=='f')glow(s[1],s[2],170,F[s[3]].r,dim(i)?.03:.13)});
+ ctx.globalCompositeOperation='source-over';
+ ctx.lineWidth=1;
+ L.forEach(([p,q])=>{const on=sel===p||sel===q;ctx.strokeStyle=on?'rgba(236,230,216,.7)':(dim(p)&&dim(q)?'rgba(236,230,216,.05)':'rgba(236,230,216,.2)');ctx.beginPath();ctx.moveTo(sx(S[p][1]),sy(S[p][2]));ctx.lineTo(sx(S[q][1]),sy(S[q][2]));ctx.stroke();});
+ ctx.textAlign='center';
+ S.forEach((s,i)=>{const X=sx(s[1]),Y=sy(s[2]),r=rad(s),f=F[s[3]];ctx.globalAlpha=dim(i)?.25:1;
+  if(i===10){ctx.fillStyle='#050410';ctx.beginPath();ctx.arc(X,Y,r,0,7);ctx.fill();ctx.strokeStyle='#f0b35a';ctx.lineWidth=2;ctx.stroke();ctx.lineWidth=1;}
+  else{ctx.fillStyle=f.c;ctx.beginPath();ctx.arc(X,Y,r,0,7);ctx.fill();}
+  if(i===sel||i===hov){ctx.strokeStyle='#ece6d8';ctx.beginPath();ctx.arc(X,Y,r+5+(i===sel&&!reduce?Math.sin(t/300)*2:0),0,7);ctx.stroke();}
+  ctx.font=`${i===sel?600:400} ${i===sel?15:13}px Fraunces,Georgia,serif`;ctx.fillStyle='#ece6d8';ctx.fillText(s[0],X,Y+r+16);ctx.globalAlpha=1;});
+ requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+function fly(i){const s=S[i],k=Math.max(v.k,.9),y=s[2]+(W<=640?H*.2/k:0);
+ if(reduce){v.x=s[1];v.y=y;v.k=k;return;}tw={t0:performance.now(),d:650,f:{...v},x:s[1],y,k};}
+function select(i){sel=i;if(i<0){panel.hidden=true;return;}const s=S[i],f=F[s[3]];
+ panel.innerHTML=`<button class="x" aria-label="Close">×</button><h2>${s[0]}</h2><p class="fac"><i style="background:${f.c}"></i>${f.n}</p><dl><dt>Type</dt><dd>${s[4]}</dd><dt>Population</dt><dd>${s[5]}</dd><dt>Lanes</dt><dd>${adj[i].length}</dd></dl><p>${s[6]}</p><h3>Connected systems</h3><div class="lanes">${adj[i].map(j=>`<button data-i="${j}">${S[j][0]}</button>`).join('')}</div>`;
+ panel.hidden=false;panel.scrollTop=0;fly(i);}
+panel.addEventListener('click',e=>{if(e.target.closest('.x'))select(-1);const b=e.target.closest('[data-i]');if(b)select(+b.dataset.i);});
+
+const lg=document.getElementById('legend');
+Object.entries(F).forEach(([k,f])=>{const n=S.filter(s=>s[3]===k).length,b=document.createElement('button');b.setAttribute('aria-pressed','false');b.innerHTML=`<i style="background:${f.c}"></i>${f.n} (${n})`;
+ b.onclick=()=>{filter=filter===k?null:k;lg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));if(filter)b.setAttribute('aria-pressed','true');};lg.appendChild(b);});
+const q=document.getElementById('q');document.getElementById('names').innerHTML=S.map(s=>`<option value="${s[0]}">`).join('');
+q.addEventListener('change',()=>{const m=S.findIndex(s=>s[0].toLowerCase()===q.value.trim().toLowerCase());if(m>=0)select(m);});
+
+function hit(mx,my){let b=-1,bd=18;S.forEach((s,i)=>{const d=Math.hypot(sx(s[1])-mx,sy(s[2])-my);if(d<bd){bd=d;b=i;}});return b;}
+function zoom(mx,my,f){const wx=(mx-W/2)/v.k+v.x,wy=(my-H/2)/v.k+v.y,k=Math.max(.2,Math.min(3.5,v.k*f));v.k=k;v.x=wx-(mx-W/2)/k;v.y=wy-(my-H/2)/k;tw=null;}
+const P=new Map();let moved=0;
+const pos=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,pos(e));if(P.size===1)moved=0;tw=null;cv.style.cursor='grabbing';});
+cv.addEventListener('pointermove',e=>{const n=pos(e),o=P.get(e.pointerId);
+ if(!o){hov=hit(...n);cv.style.cursor=hov>=0?'pointer':'grab';return;}
+ if(P.size===1){v.x-=(n[0]-o[0])/v.k;v.y-=(n[1]-o[1])/v.k;moved+=Math.abs(n[0]-o[0])+Math.abs(n[1]-o[1]);}
+ else if(P.size===2){const other=[...P].find(([id])=>id!==e.pointerId)[1],d0=Math.hypot(o[0]-other[0],o[1]-other[1]),d1=Math.hypot(n[0]-other[0],n[1]-other[1]);if(d0>0)zoom((n[0]+other[0])/2,(n[1]+other[1])/2,d1/d0);moved+=10;}
+ P.set(e.pointerId,n);});
+const up=e=>{if(!P.has(e.pointerId))return;const was=P.size===1&&moved<6&&e.type==='pointerup',n=pos(e);P.delete(e.pointerId);cv.style.cursor='grab';if(was){const h=hit(...n);select(h);}};
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{e.preventDefault();const[x,y]=pos(e);zoom(x,y,Math.exp(-e.deltaY*.0015));},{passive:false});
+addEventListener('keydown',e=>{if(e.key==='Escape')select(-1);});
+</script></body></html>
